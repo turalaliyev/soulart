@@ -1,25 +1,26 @@
-import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { Link, useStrings } from './i18n';
 import { useSettings } from './SiteApp';
 
 export default function Footer() {
   const settings = useSettings();
+  const t = useStrings();
   return (
     <footer className="footer-outer">
       <div className="footer">
         <div className="footer-top">
           <div>
             <p className="footer-heading">{settings.footer_heading}</p>
-            <Link to="/collections" className="footer-cta" aria-label="View all collections">
-              <span>View all collections</span>
+            <Link to="/collections" className="footer-cta">
+              <span>{t.viewAllCollections}</span>
               <span className="footer-cta-dot"><ArrowRight size={16} aria-hidden="true" /></span>
             </Link>
           </div>
-          <nav className="footer-links" aria-label="Footer">
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-            <Link to="/collections">Collections</Link>
-            <Link to="/contact">Contact</Link>
+          <nav className="footer-links" aria-label={t.footerNav}>
+            <Link to="/">{t.home}</Link>
+            <Link to="/about">{t.about}</Link>
+            <Link to="/collections">{t.collections}</Link>
+            <Link to="/contact">{t.contact}</Link>
           </nav>
         </div>
         <div className="footer-bottom">

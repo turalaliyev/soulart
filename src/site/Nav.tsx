@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react';
 import { imageUrl } from '../lib/backend';
 import { EASE } from './motion';
+import { LanguageSwitch, Link, useCurrentPath, useStrings } from './i18n';
 import { useSettings } from './SiteApp';
-
-const LINKS = [
-  { to: '/', label: 'Home' },
-  { to: '/about', label: 'About' },
-  { to: '/collections', label: 'Collections' },
-  { to: '/contact', label: 'Contact' },
-];
 
 export default function Nav() {
   const settings = useSettings();
-  const { pathname } = useLocation();
+  const pathname = useCurrentPath();
+  const t = useStrings();
+  const links = [
+    { to: '/', label: t.home },
+    { to: '/about', label: t.about },
+    { to: '/collections', label: t.collections },
+    { to: '/contact', label: t.contact },
+  ];
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [overLight, setOverLight] = useState(false);
@@ -65,12 +65,15 @@ export default function Nav() {
     <>
       <motion.header className={overLight && !open ? 'nav nav-dark' : 'nav'} animate={{ y: hidden && !open ? '-110%' : 0 }} transition={{ duration: 0.5, ease: EASE }}>
         <div className="wrap nav-inner">
-          <Link to="/" className="logo" aria-label="SoulArt home">SoulArt</Link>
-          <button ref={toggle} className="nav-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="site-menu" aria-label={open ? 'Close menu' : 'Open menu'}>
-            <motion.i animate={open ? { y: 6, rotate: 45 } : { y: 0, rotate: 0 }} transition={{ duration: 0.4, ease: EASE }} />
-            <motion.i animate={{ opacity: open ? 0 : 1 }} transition={{ duration: 0.2 }} />
-            <motion.i animate={open ? { y: -6, rotate: -45 } : { y: 0, rotate: 0 }} transition={{ duration: 0.4, ease: EASE }} />
-          </button>
+          <Link to="/" className="logo" aria-label={t.homeLabel}>SoulArt</Link>
+          <div className="nav-right">
+            <LanguageSwitch />
+            <button ref={toggle} className="nav-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="site-menu" aria-label={open ? t.closeMenu : t.openMenu}>
+              <motion.i animate={open ? { y: 6, rotate: 45 } : { y: 0, rotate: 0 }} transition={{ duration: 0.4, ease: EASE }} />
+              <motion.i animate={{ opacity: open ? 0 : 1 }} transition={{ duration: 0.2 }} />
+              <motion.i animate={open ? { y: -6, rotate: -45 } : { y: 0, rotate: 0 }} transition={{ duration: 0.4, ease: EASE }} />
+            </button>
+          </div>
         </div>
       </motion.header>
 
@@ -81,7 +84,7 @@ export default function Nav() {
             <motion.nav
               id="site-menu"
               className="menu"
-              aria-label="Main"
+              aria-label={t.mainNav}
               initial={{ clipPath: 'inset(0 0 100% 0)' }}
               animate={{ clipPath: 'inset(0 0 0% 0)' }}
               exit={{ clipPath: 'inset(0 0 100% 0)' }}
@@ -89,7 +92,7 @@ export default function Nav() {
             >
               <div className="wrap menu-inner">
                 <ol className="menu-links">
-                  {LINKS.map((link, i) => (
+                  {links.map((link, i) => (
                     <motion.li key={link.to} initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.12 + i * 0.06 }}>
                       <Link ref={i === 0 ? firstLink : undefined} to={link.to} onClick={() => setOpen(false)} aria-current={pathname === link.to ? 'page' : undefined}>
                         <span className="menu-num" aria-hidden="true">0{i + 1}</span>

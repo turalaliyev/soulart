@@ -1,3 +1,5 @@
+import { adminStrings } from './i18n';
+
 export interface ImageItem {
   key: string;
   url: string;
@@ -20,7 +22,7 @@ export async function compressImage(file: File): Promise<Blob> {
   try {
     bitmap = await createImageBitmap(file);
   } catch {
-    throw new Error(`"${file.name}" could not be read. Save it as JPG or PNG and try again.`);
+    throw new Error(adminStrings().unreadable(file.name));
   }
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
@@ -32,6 +34,6 @@ export async function compressImage(file: File): Promise<Blob> {
   // Browsers without a WebP encoder return PNG instead, which would be far larger, so use JPEG there.
   const webp = await encode(canvas, 'image/webp');
   const blob = webp?.type === 'image/webp' ? webp : await encode(canvas, 'image/jpeg');
-  if (!blob) throw new Error(`"${file.name}" could not be processed.`);
+  if (!blob) throw new Error(adminStrings().unprocessable(file.name));
   return blob;
 }

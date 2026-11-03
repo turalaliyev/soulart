@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { getBackend, imageUrl } from '../lib/backend';
+import { useStrings } from './i18n';
 import { Eyebrow, FitTitle, Reveal, RevealImage } from './motion';
 import { useSettings } from './SiteApp';
 
@@ -8,6 +9,7 @@ type Status = { state: 'idle' | 'sending' | 'sent' } | { state: 'error'; message
 
 export default function ContactSection({ asPageHeading = false }: { asPageHeading?: boolean }) {
   const settings = useSettings();
+  const t = useStrings();
   const [status, setStatus] = useState<Status>({ state: 'idle' });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -30,7 +32,7 @@ export default function ContactSection({ asPageHeading = false }: { asPageHeadin
       form.reset();
       setStatus({ state: 'sent' });
     } catch {
-      setStatus({ state: 'error', message: `Your message could not be sent. Please try again or email ${settings.contact_email}.` });
+      setStatus({ state: 'error', message: t.sendError(settings.contact_email) });
     }
   }
 
@@ -39,7 +41,7 @@ export default function ContactSection({ asPageHeading = false }: { asPageHeadin
       <div className="wrap">
         <div className="contact-top">
           <div className="contact-info">
-            <Eyebrow>Contact us</Eyebrow>
+            <Eyebrow>{t.contactUs}</Eyebrow>
             <div className="contact-details">
               <a className="contact-email" href={`mailto:${settings.contact_email}`}>{settings.contact_email}</a>
               {settings.contact_phone && <a href={`tel:${settings.contact_phone.replace(/\s/g, '')}`}>{settings.contact_phone}</a>}
@@ -49,24 +51,24 @@ export default function ContactSection({ asPageHeading = false }: { asPageHeadin
           <Reveal>
             <form className="contact-form" onSubmit={submit}>
               <label>
-                <span>Name</span>
-                <input name="name" required maxLength={200} autoComplete="name" placeholder="Your name" />
+                <span>{t.name}</span>
+                <input name="name" required maxLength={200} autoComplete="name" placeholder={t.namePlaceholder} />
               </label>
               <label>
-                <span>Email</span>
-                <input name="email" type="email" required maxLength={320} autoComplete="email" placeholder="you@email.com" />
+                <span>{t.email}</span>
+                <input name="email" type="email" required maxLength={320} autoComplete="email" placeholder={t.emailPlaceholder} />
               </label>
               <label>
-                <span>Message</span>
-                <textarea name="message" required maxLength={5000} rows={4} placeholder="Tell us what you have in mind" />
+                <span>{t.message}</span>
+                <textarea name="message" required maxLength={5000} rows={4} placeholder={t.messagePlaceholder} />
               </label>
               <input className="contact-trap" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" />
               <div className="contact-submit">
                 <button type="submit" className="arrow-link" disabled={status.state === 'sending'}>
-                  {status.state === 'sending' ? 'Sending' : 'Submit'} <ArrowRight size={20} aria-hidden="true" />
+                  {status.state === 'sending' ? t.sending : t.submit} <ArrowRight size={20} aria-hidden="true" />
                 </button>
                 <p role="status" className={status.state === 'error' ? 'form-note form-note-error' : 'form-note'}>
-                  {status.state === 'sent' && 'Thank you. We will get back to you soon.'}
+                  {status.state === 'sent' && t.sent}
                   {status.state === 'error' && status.message}
                 </p>
               </div>

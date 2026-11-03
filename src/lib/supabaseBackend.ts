@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, type Backend, type Collection, type ContactMessage, t
 const BUCKET = 'media';
 const UNIQUE_VIOLATION = '23505';
 const COLLECTION_SELECT = '*, products(images, sort_order)';
-const PRODUCT_SELECT = '*, collection:collections(name, slug)';
+const PRODUCT_SELECT = '*, collection:collections(name, slug, translations)';
 
 type CollectionRow = Omit<Collection, 'product_count' | 'cover'> & {
   products: { images: string[]; sort_order: number }[];

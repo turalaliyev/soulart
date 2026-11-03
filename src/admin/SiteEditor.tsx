@@ -1,92 +1,72 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBackend } from '../lib/backend';
+import { DEFAULT_LANG, type Lang } from '../lib/i18n';
 import { keys, useSettingsQuery } from '../lib/queries';
-import type { SiteSettings } from '../lib/types';
+import { SETTING_TEXT_KEYS, type SettingTextKey, type SiteSettings } from '../lib/types';
+import { useT, type AdminStrings } from './i18n';
 import type { ImageItem } from './images';
+import { LangTabs, readTexts, writeTranslations, type Texts } from './translations';
 import { commitImages, ImagesField, PageHeader, toItems, useToast } from './ui';
 
-type TextKey = { [K in keyof SiteSettings]: SiteSettings[K] extends string ? K : never }[keyof SiteSettings];
-type ImageKey = { [K in keyof SiteSettings]: SiteSettings[K] extends string ? never : K }[keyof SiteSettings];
+const IMAGE_KEYS = ['hero_image', 'collections_image', 'about_image', 'about_body_image', 'contact_image'] as const;
+type ImageKey = (typeof IMAGE_KEYS)[number];
+type SharedKey = 'contact_email' | 'contact_phone' | 'instagram_url' | 'facebook_url';
 
-type Field = { key: TextKey; label: string; long?: boolean; type?: string } | { key: ImageKey; label: string; image: true };
+type Field =
+  | { kind: 'text'; key: SettingTextKey; long?: boolean }
+  | { kind: 'shared'; key: SharedKey; type?: string }
+  | { kind: 'image'; key: ImageKey };
 
-const SECTIONS: { title: string; fields: Field[] }[] = [
+const text = (key: SettingTextKey, long = false): Field => ({ kind: 'text', key, long });
+const shared = (key: SharedKey, type?: string): Field => ({ kind: 'shared', key, type });
+const image = (key: ImageKey): Field => ({ kind: 'image', key });
+
+const SECTIONS: { title: keyof AdminStrings; fields: Field[] }[] = [
+  { title: 'sectionHero', fields: [text('hero_title'), text('hero_tagline', true), image('hero_image')] },
+  { title: 'sectionHome', fields: [text('intro_heading'), text('intro_text', true), text('works_heading')] },
+  { title: 'sectionCollections', fields: [text('collections_title'), text('collections_tagline', true), image('collections_image')] },
   {
-    title: 'Home: hero',
+    title: 'sectionAbout',
     fields: [
-      { key: 'hero_title', label: 'Large title' },
-      { key: 'hero_tagline', label: 'Tagline', long: true },
-      { key: 'hero_image', label: 'Background image', image: true },
+      text('about_title'), text('about_tagline', true), image('about_image'), text('mission_lead'), text('mission_text', true),
+      text('about_body_heading'), text('about_body', true), image('about_body_image'),
     ],
   },
   {
-    title: 'Home: sections',
+    title: 'sectionContact',
     fields: [
-      { key: 'intro_heading', label: 'Intro heading' },
-      { key: 'intro_text', label: 'Intro text', long: true },
-      { key: 'works_heading', label: 'Giant text behind the works' },
-    ],
-  },
-  {
-    title: 'Collections page',
-    fields: [
-      { key: 'collections_title', label: 'Title' },
-      { key: 'collections_tagline', label: 'Tagline', long: true },
-      { key: 'collections_image', label: 'Background image', image: true },
-    ],
-  },
-  {
-    title: 'About page',
-    fields: [
-      { key: 'about_title', label: 'Title' },
-      { key: 'about_tagline', label: 'Tagline', long: true },
-      { key: 'about_image', label: 'Background image', image: true },
-      { key: 'mission_lead', label: 'Mission: opening words (always dark)' },
-      { key: 'mission_text', label: 'Mission: rest of the sentence (darkens on scroll)', long: true },
-      { key: 'about_body_heading', label: 'Story heading' },
-      { key: 'about_body', label: 'Story text', long: true },
-      { key: 'about_body_image', label: 'Story image', image: true },
-    ],
-  },
-  {
-    title: 'Contact and footer',
-    fields: [
-      { key: 'contact_heading', label: 'Large heading' },
-      { key: 'contact_image', label: 'Image', image: true },
-      { key: 'contact_email', label: 'Email', type: 'email' },
-      { key: 'contact_phone', label: 'Phone (optional)' },
-      { key: 'contact_address', label: 'Address (optional)' },
-      { key: 'instagram_url', label: 'Instagram link (optional)', type: 'url' },
-      { key: 'facebook_url', label: 'Facebook link (optional)', type: 'url' },
-      { key: 'footer_heading', label: 'Footer heading' },
+      text('contact_heading'), image('contact_image'), shared('contact_email', 'email'), shared('contact_phone'), text('contact_address'),
+      shared('instagram_url', 'url'), shared('facebook_url', 'url'), text('footer_heading'),
     ],
   },
 ];
 
-const IMAGE_KEYS = SECTIONS.flatMap((s) => s.fields).filter((f): f is Extract<Field, { image: true }> => 'image' in f).map((f) => f.key);
-
 export default function SiteEditor() {
+  const t = useT();
   const { data, isPending, isError, error } = useSettingsQuery();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [lang, setLang] = useState<Lang>(DEFAULT_LANG);
   const [form, setForm] = useState<SiteSettings | null>(null);
+  const [texts, setTexts] = useState<Texts<SettingTextKey> | null>(null);
   const [images, setImages] = useState<Partial<Record<ImageKey, ImageItem[]>>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!data) return;
     setForm(data);
+    setTexts(readTexts(SETTING_TEXT_KEYS, data, data.translations));
     setImages(Object.fromEntries(IMAGE_KEYS.map((key) => [key, toItems([data[key]])])));
   }, [data]);
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!form || !data) return;
+    if (!form || !texts || !data) return;
     setSaving(true);
     try {
       const backend = await getBackend();
-      const patch: Partial<SiteSettings> = { ...form };
+      const patch: Partial<SiteSettings> = { ...form, ...texts.az, translations: writeTranslations(SETTING_TEXT_KEYS, texts) };
       const uploaded: string[] = [];
       for (const key of IMAGE_KEYS) {
         const result = await commitImages(images[key] ?? [], 'site');
@@ -102,42 +82,54 @@ export default function SiteEditor() {
       const replaced = IMAGE_KEYS.map((key) => data[key]).filter((p): p is string => Boolean(p) && !IMAGE_KEYS.some((key) => patch[key] === p));
       await backend.removeImages(replaced).catch(() => {});
       await queryClient.invalidateQueries({ queryKey: keys.settings });
-      toast('Site content saved');
+      toast(t.siteSaved);
     } catch (e) {
       toast((e as Error).message, 'error');
     }
     setSaving(false);
   }
 
-  if (isPending || (!form && !isError)) return <p className="muted">Loading...</p>;
-  if (isError || !form) return <p className="field-error" role="alert">{(error as Error).message}</p>;
+  if (isPending || (!form && !isError)) return <p className="muted">{t.loading}</p>;
+  if (isError || !form || !texts) return <p className="field-error" role="alert">{(error as Error)?.message}</p>;
 
   return (
     <>
-      <PageHeader title="Site content" subtitle="The text and images on Home, About, Collections and Contact." />
+      <PageHeader title={t.siteContent} subtitle={t.siteSubtitle} />
       <form onSubmit={save}>
+        <div className="lang-tabs-sticky">
+          <LangTabs value={lang} onChange={setLang} texts={texts} watch={['hero_tagline', 'intro_heading', 'about_title']} />
+        </div>
         {SECTIONS.map((section) => (
           <fieldset className="form-card" key={section.title}>
-            <legend>{section.title}</legend>
+            <legend>{t[section.title] as string}</legend>
             {section.fields.map((field) => {
-              if ('image' in field) {
-                return <ImagesField key={field.key} label={field.label} max={1} items={images[field.key] ?? []} onChange={(items) => setImages((current) => ({ ...current, [field.key]: items }))} />;
+              const label = t.fields[field.key];
+              if (field.kind === 'image') {
+                return <ImagesField key={field.key} label={label} max={1} items={images[field.key] ?? []} onChange={(items) => setImages((current) => ({ ...current, [field.key]: items }))} />;
               }
-              const value = form[field.key];
-              const set = (v: string) => setForm({ ...form, [field.key]: v });
+              if (field.kind === 'shared') {
+                return (
+                  <label className="field" key={field.key}>
+                    <span>{label}</span>
+                    <input type={field.type ?? 'text'} value={form[field.key]} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />
+                  </label>
+                );
+              }
+              const set = (value: string) => setTexts({ ...texts, [lang]: { ...texts[lang], [field.key]: value } });
+              const placeholder = lang === DEFAULT_LANG ? undefined : texts.az[field.key];
               return (
                 <label className="field" key={field.key}>
-                  <span>{field.label}</span>
+                  <span>{label}</span>
                   {field.long
-                    ? <textarea rows={3} value={value} onChange={(e) => set(e.target.value)} />
-                    : <input type={field.type ?? 'text'} value={value} onChange={(e) => set(e.target.value)} />}
+                    ? <textarea lang={lang} rows={3} value={texts[lang][field.key]} placeholder={placeholder} onChange={(e) => set(e.target.value)} />
+                    : <input lang={lang} value={texts[lang][field.key]} placeholder={placeholder} onChange={(e) => set(e.target.value)} />}
                 </label>
               );
             })}
           </fieldset>
         ))}
         <div className="save-bar">
-          <button className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save changes'}</button>
+          <button className="btn btn-primary" disabled={saving}>{saving ? t.saving : t.saveChanges}</button>
         </div>
       </form>
     </>

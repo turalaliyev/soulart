@@ -1,41 +1,49 @@
 // In-memory stand-in used only by `npm run dev` before Supabase is connected.
 // Nothing here reaches production: backend.ts imports it behind import.meta.env.DEV.
 import { randomSuffix, slugify } from './slug';
-import { DEFAULT_SETTINGS, type Backend, type Collection, type ContactMessage, type Product, type SiteSettings } from './types';
+import type { Translations } from './i18n';
+import { DEFAULT_SETTINGS, type Backend, type Collection, type ContactMessage, type ContentKey, type Product, type SiteSettings } from './types';
 
 const art = import.meta.glob('../demo/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const img = (n: number) => art[`../demo/art-${n}.webp`];
 
 const now = '2026-01-01T00:00:00Z';
-const raw = (id: string, name: string, description: string, image: string | null, sort_order: number) => ({
-  id, name, slug: slugify(name), description, image, sort_order, created_at: now,
+type Tr = Translations<ContentKey>;
+const tr = (ru: [string, string], en: [string, string]): Tr => ({
+  ru: { name: ru[0], description: ru[1] },
+  en: { name: en[0], description: en[1] },
+});
+
+const raw = (id: string, name: string, description: string, image: string | null, sort_order: number, translations: Tr) => ({
+  id, name, slug: slugify(name), description, image, sort_order, translations, created_at: now,
 });
 
 let collections = [
-  raw('c1', 'Ceramics', 'Thrown, glazed and fired vessels for everyday use.', img(1), 0),
-  raw('c2', 'Textiles', 'Woven and dyed pieces with a slow, tactile character.', img(2), 1),
-  raw('c3', 'Paintings', 'Original works in oil and mineral pigment.', null, 2),
-  raw('c4', 'Woodwork', 'Carved objects shaped from reclaimed timber.', img(4), 3),
+  raw('c1', 'Keramika', 'Gündəlik istifadə üçün dulusçu çarxında hazırlanmış, şirlənmiş və bişirilmiş qablar.', img(1), 0, tr(['Керамика', 'Сосуды для каждого дня: сформованы на круге, покрыты глазурью и обожжены.'], ['Ceramics', 'Thrown, glazed and fired vessels for everyday use.'])),
+  raw('c2', 'Toxuculuq', 'Əllə toxunmuş və boyanmış, toxunuşu xoş olan işlər.', img(2), 1, tr(['Текстиль', 'Тканые и окрашенные вручную работы, приятные на ощупь.'], ['Textiles', 'Woven and dyed pieces with a slow, tactile character.'])),
+  raw('c3', 'Rəsmlər', 'Yağlı boya və mineral piqmentlə çəkilmiş orijinal əsərlər.', null, 2, tr(['Живопись', 'Оригинальные работы маслом и минеральными пигментами.'], ['Paintings', 'Original works in oil and mineral pigment.'])),
+  raw('c4', 'Ağac işləri', 'Təkrar istifadə olunan ağacdan oyulmuş əşyalar.', img(4), 3, tr(['Изделия из дерева', 'Резные предметы из вторичной древесины.'], ['Woodwork', 'Carved objects shaped from reclaimed timber.'])),
 ];
 
-const product = (id: string, collection_id: string, name: string, description: string, images: string[], is_featured: boolean, sort_order: number): Product => ({
-  id, collection_id, name, slug: slugify(name), description, images, is_featured, sort_order, created_at: now,
+const product = (id: string, collection_id: string, name: string, description: string, images: string[], is_featured: boolean, sort_order: number, translations: Tr): Product => ({
+  id, collection_id, name, slug: slugify(name), description, images, is_featured, sort_order, translations, created_at: now,
 });
 
 let products: Product[] = [
-  product('p1', 'c1', 'Ember Vessel', 'A wide-shouldered vessel with an iron glaze that breaks to rust at the rim.\n\nThis is placeholder content for local preview. Connect Supabase to replace it with your own pieces.', [img(1), img(5), img(9)], true, 0),
-  product('p2', 'c2', 'Tide Weave', 'Hand-dyed wool woven in long, drifting bands of colour.', [img(2), img(6)], true, 1),
-  product('p3', 'c3', 'Red Field', 'Mineral pigment on linen, built up in thin translucent layers.', [img(3), img(7)], true, 2),
-  product('p4', 'c4', 'Hollow Form', 'Turned from a single piece of reclaimed oak.', [img(4), img(8)], true, 3),
-  product('p5', 'c1', 'Ash Bowl', 'A shallow bowl with a soft grey ash glaze.', [img(5), img(1)], true, 4),
-  product('p6', 'c1', 'Moss Jar', 'A lidded jar with a deep green glaze.', [img(6)], false, 5),
-  product('p7', 'c3', 'Dusk Study', 'A small study of evening light on paper.', [img(7)], false, 6),
-  product('p8', 'c2', 'Clay Runner', 'A long woven runner in earth tones.', [img(8)], false, 7),
+  product('p1', 'c1', 'Köz küpü', 'Geniş çiyinli küp; dəmir şiri kənarlarda pas rənginə çalır.\n\nBu, önizləmə üçün nümunə məzmundur. Supabase qoşulanda öz əsərləriniz görünəcək.', [img(1), img(5), img(9)], true, 0, tr(['Сосуд «Уголь»', 'Сосуд с широкими плечами: железистая глазурь у края переходит в цвет ржавчины.\n\nЭто образец для предпросмотра. После подключения Supabase здесь появятся ваши работы.'], ['Ember Vessel', 'A wide-shouldered vessel with an iron glaze that breaks to rust at the rim.\n\nThis is placeholder content for local preview. Connect Supabase to replace it with your own pieces.'])),
+  product('p2', 'c2', 'Dalğa toxuması', 'Əllə boyanmış yundan uzun, axıcı rəng zolaqları ilə toxunub.', [img(2), img(6)], true, 1, tr(['Плетение «Прилив»', 'Вручную окрашенная шерсть, сотканная длинными плавными полосами цвета.'], ['Tide Weave', 'Hand-dyed wool woven in long, drifting bands of colour.'])),
+  product('p3', 'c3', 'Qırmızı tarla', 'Kətan üzərində nazik, şəffaf qatlarla işlənmiş mineral piqment.', [img(3), img(7)], true, 2, tr(['Красное поле', 'Минеральный пигмент на льне, нанесённый тонкими прозрачными слоями.'], ['Red Field', 'Mineral pigment on linen, built up in thin translucent layers.'])),
+  product('p4', 'c4', 'Boş forma', 'Təkrar istifadə olunan tək parça palıddan yonulub.', [img(4), img(8)], true, 3, tr(['Полая форма', 'Выточена из цельного куска вторичного дуба.'], ['Hollow Form', 'Turned from a single piece of reclaimed oak.'])),
+  product('p5', 'c1', 'Kül kasası', 'Yumşaq boz kül şirli dayaz kasa.', [img(5), img(1)], true, 4, tr(['Чаша «Пепел»', 'Неглубокая чаша с мягкой серой зольной глазурью.'], ['Ash Bowl', 'A shallow bowl with a soft grey ash glaze.'])),
+  product('p6', 'c1', 'Mamır bankası', 'Tünd yaşıl şirli, qapaqlı banka.', [img(6)], false, 5, tr(['Банка «Мох»', 'Банка с крышкой под глубокой зелёной глазурью.'], ['Moss Jar', 'A lidded jar with a deep green glaze.'])),
+  // Left without English on purpose, so the preview shows the fallback to Azerbaijani.
+  product('p7', 'c3', 'Toran etüdü', 'Kağız üzərində axşam işığının kiçik etüdü.', [img(7)], false, 6, { ru: { name: 'Этюд сумерек', description: 'Небольшой этюд вечернего света на бумаге.' } }),
+  product('p8', 'c2', 'Gil cığırı', 'Torpaq çalarlarında uzun toxunma xalça.', [img(8)], false, 7, tr(['Дорожка «Глина»', 'Длинная тканая дорожка в земляных тонах.'], ['Clay Runner', 'A long woven runner in earth tones.'])),
 ];
 
 let settings: SiteSettings = { ...DEFAULT_SETTINGS, hero_image: img(9), collections_image: img(10), about_image: img(7), about_body_image: img(5), contact_image: img(3) };
 let messages: ContactMessage[] = [
-  { id: 'm1', name: 'Sample Visitor', email: 'visitor@example.com', message: 'This is a sample message so you can see how the inbox works.', is_read: false, created_at: now },
+  { id: 'm1', name: 'Sample Visitor', email: 'visitor@example.com', message: 'Bu, gələnlər qutusunun necə işlədiyini göstərən nümunə mesajdır.', is_read: false, created_at: now },
 ];
 
 const listeners = new Set<() => void>();
@@ -47,7 +55,7 @@ function withMeta(c: (typeof collections)[number]): Collection {
 }
 function withCollection(p: Product): Product {
   const c = collections.find((x) => x.id === p.collection_id);
-  return { ...p, collection: c ? { name: c.name, slug: c.slug } : null };
+  return { ...p, collection: c ? { name: c.name, slug: c.slug, translations: c.translations } : null };
 }
 const uniqueSlug = (name: string, taken: { slug: string }[]) => {
   const slug = slugify(name);

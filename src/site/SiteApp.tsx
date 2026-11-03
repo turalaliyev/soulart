@@ -1,10 +1,13 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { Route, Routes, useLocation, type Location } from 'react-router-dom';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Route, Routes, useLocation, useNavigate, type Location } from 'react-router-dom';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import Lenis from 'lenis';
 import { imageUrl } from '../lib/backend';
 import { useSettingsQuery } from '../lib/queries';
-import { DEFAULT_SETTINGS, type SiteSettings } from '../lib/types';
+import { readStoredLang } from '../lib/i18n';
+import { DEFAULT_SETTINGS, localizeSettings, type SiteSettings } from '../lib/types';
+import { LANG_STORAGE_KEY, LangProvider, localizePath, parsePath } from './i18n';
+import { SITE_STRINGS } from './strings';
 import { EASE } from './motion';
 import Nav from './Nav';
 import Footer from './Footer';
@@ -97,36 +100,54 @@ function useHeroReady(path: string | null | undefined, enabled: boolean) {
 
 export default function SiteApp() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { lang, path } = parsePath(location.pathname);
+  const t = SITE_STRINGS[lang];
   const settings = useSettingsQuery();
+  const localizedSettings = useMemo(() => localizeSettings(settings.data ?? DEFAULT_SETTINGS, lang), [settings.data, lang]);
   const [revealed, setRevealed] = useState(false);
   useSmoothScroll();
 
   useEffect(() => {
     history.scrollRestoration = 'manual';
+    // A returning visitor who chose Russian or English gets it again when they arrive at the home page.
+    // Azerbaijani stays the default for everyone else, and a shared link always keeps its own language.
+    const remembered = readStoredLang(LANG_STORAGE_KEY);
+    if (location.pathname === '/' && remembered && remembered !== 'az') navigate(localizePath('/', remembered), { replace: true });
+    // Only on arrival: later visits to "/" are deliberate choices of Azerbaijani.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const heroReady = useHeroReady(settings.data?.hero_image, !settings.isPending);
-  const ready = !settings.isPending && (location.pathname !== '/' || heroReady);
+  const ready = !settings.isPending && (path !== '/' || heroReady);
 
   if (settings.isError && !settings.data && import.meta.env.PROD) {
     return (
       <div className="site-error">
         <p className="logo">SoulArt</p>
-        <p>The site is temporarily unavailable. Please try again in a moment.</p>
+        <p>{t.unavailable}</p>
       </div>
     );
   }
 
   return (
     <MotionConfig reducedMotion="user">
-      <Preloader ready={ready} onReveal={() => setRevealed(true)} />
+      <Preloader ready={ready} label={t.loading} onReveal={() => setRevealed(true)} />
       {revealed && (
-        <SettingsContext.Provider value={settings.data ?? DEFAULT_SETTINGS}>
-          <Nav />
-          <AnimatePresence mode="wait" initial={false} onExitComplete={scrollToTop}>
-            <Page key={location.pathname} location={location} />
-          </AnimatePresence>
-        </SettingsContext.Provider>
+        <LangProvider value={{ lang, path }}>
+          <SettingsContext.Provider value={localizedSettings}>
+            <Nav />
+            {/* Keyed by the path without its language, so switching language swaps the text in place
+                and keeps the scroll position instead of playing a page transition. */}
+            <AnimatePresence mode="wait" initial={false} onExitComplete={scrollToTop}>
+              <Page key={path} location={{ ...location, pathname: path }} />
+            </AnimatePresence>
+          </SettingsContext.Provider>
+        </LangProvider>
       )}
     </MotionConfig>
   );

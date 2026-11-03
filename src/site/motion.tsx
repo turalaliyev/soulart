@@ -101,7 +101,7 @@ export function FitTitle({ text, maxSize = Infinity, delay = 0, as = 'h1', class
 
   return (
     <div ref={box} className={`fit-title ${className ?? ''}`}>
-      <Tag aria-label={text} style={{ fontSize: size }} initial="hidden" whileInView="show" viewport={{ once: true }}>
+      <Tag key={text} aria-label={text} style={{ fontSize: size }} initial="hidden" whileInView="show" viewport={{ once: true }}>
         <span ref={line} className="fit-title-line" aria-hidden="true">
           {Array.from(text).map((char, i) => (
             <motion.span

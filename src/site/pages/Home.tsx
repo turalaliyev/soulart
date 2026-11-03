@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { ArrowDown, ArrowRight } from 'lucide-react';
 import { imageUrl } from '../../lib/backend';
-import { useCollections, useProducts } from '../../lib/queries';
 import type { Collection, Product } from '../../lib/types';
 import ContactSection from '../ContactSection';
+import { Link, useSiteCollections, useSiteProducts, useStrings } from '../i18n';
 import { EASE, Eyebrow, FitTitle, Reveal, useParallax, useTitle } from '../motion';
 import { useSettings } from '../SiteApp';
 import WorkCard from '../WorkCard';
 
 function Hero() {
   const settings = useSettings();
+  const t = useStrings();
   const { scrollY } = useScroll();
   const reduced = useReducedMotion();
   const y = useTransform(scrollY, [0, 1000], [0, 200]);
@@ -26,7 +26,7 @@ function Hero() {
       <div className="wrap hero-inner">
         <motion.div className="hero-top" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE, delay: 0.5 }}>
           <p>{settings.hero_tagline}</p>
-          <Link to="/collections" className="arrow-link">View Collections <ArrowDown size={20} aria-hidden="true" /></Link>
+          <Link to="/collections" className="arrow-link">{t.viewCollections} <ArrowDown size={20} aria-hidden="true" /></Link>
         </motion.div>
         <FitTitle text={settings.hero_title} delay={0.25} maxSize={window.innerHeight * 0.5} className="hero-title" />
       </div>
@@ -88,6 +88,7 @@ function FloatingCard({ product, index }: { product: Product; index: number }) {
 /** Cards float past a giant grey heading that slides sideways behind them. */
 function SelectedWorks({ products }: { products: Product[] }) {
   const settings = useSettings();
+  const t = useStrings();
   const section = useRef<HTMLElement>(null);
   const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: section, offset: ['start end', 'end start'] });
@@ -101,7 +102,7 @@ function SelectedWorks({ products }: { products: Product[] }) {
         {products.map((product, i) => <FloatingCard key={product.id} product={product} index={i} />)}
       </div>
       <Reveal className="wrap works-more">
-        <Link to="/collections" className="arrow-link arrow-link-dark">All collections <ArrowRight size={20} aria-hidden="true" /></Link>
+        <Link to="/collections" className="arrow-link arrow-link-dark">{t.allCollections} <ArrowRight size={20} aria-hidden="true" /></Link>
       </Reveal>
     </section>
   );
@@ -110,11 +111,12 @@ function SelectedWorks({ products }: { products: Product[] }) {
 /** Names on the left, picture on the right. Hover or focus a name to bring its picture forward. */
 function CollectionList({ collections }: { collections: Collection[] }) {
   const [active, setActive] = useState(0);
+  const t = useStrings();
   const current = collections[Math.min(active, collections.length - 1)];
   return (
-    <section className="clist" aria-label="Collections">
+    <section className="clist" aria-label={t.collections}>
       <div className="wrap">
-        <Eyebrow>Collections</Eyebrow>
+        <Eyebrow>{t.collections}</Eyebrow>
         <div className="clist-grid">
           <ul className="clist-names">
             {collections.map((collection, i) => (
@@ -149,9 +151,9 @@ function CollectionList({ collections }: { collections: Collection[] }) {
 
 export default function Home() {
   useTitle('SoulArt');
-  const featured = useProducts({ featured: true, limit: 8 });
-  const latest = useProducts({ limit: 8 }, featured.isSuccess && featured.data.length === 0);
-  const collections = useCollections();
+  const featured = useSiteProducts({ featured: true, limit: 8 });
+  const latest = useSiteProducts({ limit: 8 }, featured.isSuccess && featured.data?.length === 0);
+  const collections = useSiteCollections();
   const works = featured.data?.length ? featured.data : latest.data ?? [];
 
   return (

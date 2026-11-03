@@ -15,7 +15,7 @@ function hasSeenIntro(): boolean {
 }
 
 /** Plays once per browser session: the name letter by letter, then the panel slides away. */
-export default function Preloader({ ready, onReveal }: { ready: boolean; onReveal: () => void }) {
+export default function Preloader({ ready, label, onReveal }: { ready: boolean; label: string; onReveal: () => void }) {
   const [skip] = useState(() => hasSeenIntro() || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [minElapsed, setMinElapsed] = useState(skip);
   const finished = ready && minElapsed;
@@ -43,7 +43,7 @@ export default function Preloader({ ready, onReveal }: { ready: boolean; onRevea
   return (
     <AnimatePresence>
       {!finished && (
-        <motion.div className="preloader" exit={{ y: '-100%' }} transition={{ duration: 0.9, ease: EASE }} aria-label="Loading" role="status">
+        <motion.div className="preloader" exit={{ y: '-100%' }} transition={{ duration: 0.9, ease: EASE }} aria-label={label} role="status">
           <div className="preloader-word" aria-hidden="true">
             {LETTERS.map((letter, i) => (
               <span key={i} className="preloader-mask">

@@ -3,9 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Mail, Trash2 } from 'lucide-react';
 import { getBackend } from '../lib/backend';
 import type { ContactMessage } from '../lib/types';
+import { useAdminLang, useT } from './i18n';
 import { ConfirmDialog, PageHeader, useToast } from './ui';
 
 export default function Messages() {
+  const t = useT();
+  const lang = useAdminLang();
   const queryClient = useQueryClient();
   const toast = useToast();
   const [deleting, setDeleting] = useState<ContactMessage | null>(null);
@@ -30,7 +33,7 @@ export default function Messages() {
     if (!deleting) return;
     try {
       await (await getBackend()).deleteMessage(deleting.id);
-      toast('Message deleted');
+      toast(t.messageDeleted);
       await refresh();
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -40,13 +43,13 @@ export default function Messages() {
 
   return (
     <>
-      <PageHeader title="Messages" subtitle="Sent through the website's contact form." />
-      {isPending && <p className="muted">Loading...</p>}
+      <PageHeader title={t.messages} subtitle={t.messagesSubtitle} />
+      {isPending && <p className="muted">{t.loading}</p>}
       {isError && <p className="field-error" role="alert">{(error as Error).message}</p>}
       {data?.length === 0 && (
         <div className="empty-state">
           <Mail size={32} aria-hidden="true" />
-          <h2>No messages yet</h2>
+          <h2>{t.noMessages}</h2>
         </div>
       )}
       <ul className="messages">
@@ -57,22 +60,22 @@ export default function Messages() {
                 <strong>{message.name}</strong>
                 <a href={`mailto:${message.email}`}>{message.email}</a>
               </div>
-              <time className="muted" dateTime={message.created_at}>{new Date(message.created_at).toLocaleString()}</time>
+              <time className="muted" dateTime={message.created_at}>{new Date(message.created_at).toLocaleString(lang)}</time>
             </div>
             <p className="message-body">{message.message}</p>
             <div className="message-actions">
-              <a className="btn" href={`mailto:${message.email}`}>Reply by email</a>
-              <button className="btn" onClick={() => toggleRead(message)}>{message.is_read ? 'Mark as unread' : 'Mark as read'}</button>
-              <button className="icon-btn icon-btn-danger" onClick={() => setDeleting(message)} aria-label={`Delete message from ${message.name}`}><Trash2 size={16} /></button>
+              <a className="btn" href={`mailto:${message.email}`}>{t.replyByEmail}</a>
+              <button className="btn" onClick={() => toggleRead(message)}>{message.is_read ? t.markUnread : t.markRead}</button>
+              <button className="icon-btn icon-btn-danger" onClick={() => setDeleting(message)} aria-label={t.deleteMessage(message.name)}><Trash2 size={16} /></button>
             </div>
           </li>
         ))}
       </ul>
       {deleting && (
         <ConfirmDialog
-          title="Delete this message?"
-          body={`The message from ${deleting.name} will be permanently deleted.`}
-          confirmLabel="Delete"
+          title={t.deleteMessageTitle}
+          body={t.deleteMessageBody(deleting.name)}
+          confirmLabel={t.delete}
           onConfirm={confirmDelete}
           onCancel={() => setDeleting(null)}
         />

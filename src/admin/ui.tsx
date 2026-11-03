@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ImagePlus, Star, X } from 'lucide-react';
 import { getBackend, imageUrl } from '../lib/backend';
+import { useT } from './i18n';
 import { compressImage, type ImageItem } from './images';
 
 /* Toasts ------------------------------------------------------------------ */
@@ -34,6 +35,7 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
   onConfirm: () => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -44,7 +46,7 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
       <h2>{title}</h2>
       <p>{body}</p>
       <div className="dialog-actions">
-        <button className="btn" onClick={onCancel} disabled={busy} autoFocus>Cancel</button>
+        <button className="btn" onClick={onCancel} disabled={busy} autoFocus>{t.cancel}</button>
         <button
           className="btn btn-danger"
           disabled={busy}
@@ -53,7 +55,7 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
             await onConfirm();
           }}
         >
-          {busy ? 'Working...' : confirmLabel}
+          {busy ? t.working : confirmLabel}
         </button>
       </div>
     </dialog>
@@ -74,10 +76,11 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 }
 
 export function MoveButtons({ index, count, onMove, label }: { index: number; count: number; onMove: (from: number, to: number) => void; label: string }) {
+  const t = useT();
   return (
     <div className="move-buttons">
-      <button className="icon-btn" disabled={index === 0} onClick={() => onMove(index, index - 1)} aria-label={`Move ${label} up`}><ArrowUp size={16} /></button>
-      <button className="icon-btn" disabled={index === count - 1} onClick={() => onMove(index, index + 1)} aria-label={`Move ${label} down`}><ArrowDown size={16} /></button>
+      <button className="icon-btn" disabled={index === 0} onClick={() => onMove(index, index - 1)} aria-label={t.moveUp(label)}><ArrowUp size={16} /></button>
+      <button className="icon-btn" disabled={index === count - 1} onClick={() => onMove(index, index + 1)} aria-label={t.moveDown(label)}><ArrowDown size={16} /></button>
     </div>
   );
 }
@@ -97,6 +100,7 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
   hint?: string;
   error?: string;
 }) {
+  const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [problem, setProblem] = useState('');
@@ -105,7 +109,7 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
   function addFiles(files: FileList | null) {
     if (!files) return;
     const accepted = Array.from(files).filter((f) => ACCEPT.split(',').includes(f.type));
-    setProblem(accepted.length < files.length ? 'Some files were skipped. Use JPG, PNG, WebP or AVIF images.' : '');
+    setProblem(accepted.length < files.length ? t.badFiles : '');
     const added = accepted.map<ImageItem>((file) => ({ key: crypto.randomUUID(), file, url: URL.createObjectURL(file) }));
     onChange(multiple ? [...items, ...added].slice(0, max) : added.slice(0, 1).concat(added.length ? [] : items));
   }
@@ -123,12 +127,12 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
       <div className={multiple ? 'image-grid' : 'image-grid image-grid-single'}>
         {items.map((item, i) => (
           <figure className="image-tile" key={item.key}>
-            <img src={item.url} alt={`Selected ${i + 1}`} />
-            {multiple && i === 0 && <figcaption><Star size={12} aria-hidden="true" /> Cover</figcaption>}
+            <img src={item.url} alt={t.selected(i + 1)} />
+            {multiple && i === 0 && <figcaption><Star size={12} aria-hidden="true" /> {t.cover}</figcaption>}
             <div className="image-tile-tools">
-              {multiple && <button type="button" className="icon-btn" disabled={i === 0} onClick={() => move(i, i - 1)} aria-label="Move image earlier"><ArrowLeft size={15} /></button>}
-              {multiple && <button type="button" className="icon-btn" disabled={i === items.length - 1} onClick={() => move(i, i + 1)} aria-label="Move image later"><ArrowRight size={15} /></button>}
-              <button type="button" className="icon-btn icon-btn-danger" onClick={() => onChange(items.filter((x) => x.key !== item.key))} aria-label="Remove image"><X size={15} /></button>
+              {multiple && <button type="button" className="icon-btn" disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={t.moveEarlier}><ArrowLeft size={15} /></button>}
+              {multiple && <button type="button" className="icon-btn" disabled={i === items.length - 1} onClick={() => move(i, i + 1)} aria-label={t.moveLater}><ArrowRight size={15} /></button>}
+              <button type="button" className="icon-btn icon-btn-danger" onClick={() => onChange(items.filter((x) => x.key !== item.key))} aria-label={t.removeImage}><X size={15} /></button>
             </div>
           </figure>
         ))}
@@ -142,8 +146,8 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
             onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
           >
             <ImagePlus size={22} aria-hidden="true" />
-            <span>{multiple ? 'Add images' : 'Choose image'}</span>
-            <small>or drag and drop</small>
+            <span>{multiple ? t.addImages : t.chooseImage}</span>
+            <small>{t.dragDrop}</small>
           </button>
         )}
       </div>

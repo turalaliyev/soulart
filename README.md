@@ -64,6 +64,27 @@ After this, each `git push` to `main` redeploys the site. If you change an envir
 2. Under **Collections**, create your collections.
 3. Under **Products**, add products. Each one needs at least one image, and the first image is the cover. Tick **Show on the home page** for the pieces you want under Selected Works. If you tick none, the home page shows the most recent ones.
 
+## Languages
+
+The site runs in Azerbaijani (default), Russian and English:
+
+- Azerbaijani: `/about`
+- Russian: `/ru/about`
+- English: `/en/about`
+
+Visitors switch with AZ / RU / EN in the header. A visitor who picks Russian or English gets it again the next time they open the home page. Shared links keep their own language.
+
+In the admin panel, the switch at the bottom of the sidebar changes the panel's own language. The tabs at the top of each form choose which language you are editing:
+
+- Azerbaijani is the main version, and each collection and product needs a name in it. The page address comes from that first name and stays the same if you rename the item later.
+- Russian and English are optional. Where you leave a field blank, the website shows the Azerbaijani text.
+- An orange dot on a tab means that language still needs translating.
+- Images, email, phone and social links are shared across languages.
+
+To change fixed text such as button labels, edit `src/site/strings.ts` (website) or `src/admin/i18n.tsx` (admin panel).
+
+**Upgrading a database made before languages were added:** run all of `supabase/schema.sql` again in the SQL Editor *before* deploying the new code. It adds the translation columns and keeps your content. Text already in your collections and products counts as Azerbaijani.
+
 ## Good to know
 
 - **Contact messages** go to **Messages** in the admin panel. Nothing emails you when one arrives, so check the panel. Email alerts need a sending service such as Resend.

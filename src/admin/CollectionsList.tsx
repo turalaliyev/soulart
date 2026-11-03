@@ -5,9 +5,11 @@ import { FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { getBackend, imageUrl } from '../lib/backend';
 import { keys, useCollections } from '../lib/queries';
 import type { Collection } from '../lib/types';
+import { useT } from './i18n';
 import { ConfirmDialog, MoveButtons, PageHeader, useToast } from './ui';
 
 export default function CollectionsList() {
+  const t = useT();
   const { data, isPending, isError, error } = useCollections();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -35,7 +37,7 @@ export default function CollectionsList() {
     if (!deleting) return;
     try {
       await (await getBackend()).deleteCollection(deleting.id);
-      toast(`Deleted "${deleting.name}"`);
+      toast(t.deleted(deleting.name));
       await refresh();
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -46,18 +48,18 @@ export default function CollectionsList() {
   return (
     <>
       <PageHeader
-        title="Collections"
-        subtitle="The order here is the order on the website."
-        action={<Link className="btn btn-primary" to="/admin/collections/new"><Plus size={16} aria-hidden="true" /> New collection</Link>}
+        title={t.collections}
+        subtitle={t.collectionsSubtitle}
+        action={<Link className="btn btn-primary" to="/admin/collections/new"><Plus size={16} aria-hidden="true" /> {t.newCollection}</Link>}
       />
-      {isPending && <p className="muted">Loading...</p>}
+      {isPending && <p className="muted">{t.loading}</p>}
       {isError && <p className="field-error" role="alert">{(error as Error).message}</p>}
       {data?.length === 0 && (
         <div className="empty-state">
           <FolderOpen size={32} aria-hidden="true" />
-          <h2>No collections yet</h2>
-          <p className="muted">Create your first collection, then add products to it.</p>
-          <Link className="btn btn-primary" to="/admin/collections/new">Create a collection</Link>
+          <h2>{t.noCollections}</h2>
+          <p className="muted">{t.noCollectionsText}</p>
+          <Link className="btn btn-primary" to="/admin/collections/new">{t.createCollection}</Link>
         </div>
       )}
       <ul className="rows">
@@ -67,20 +69,18 @@ export default function CollectionsList() {
             {collection.cover ? <img className="row-thumb" src={imageUrl(collection.cover)} alt="" loading="lazy" /> : <div className="row-thumb row-thumb-empty" aria-hidden="true" />}
             <div className="row-main">
               <Link to={`/admin/collections/${collection.id}`} className="row-title">{collection.name}</Link>
-              <p className="muted row-sub">{collection.product_count} {collection.product_count === 1 ? 'product' : 'products'}</p>
+              <p className="muted row-sub">{t.productCount(collection.product_count)}</p>
             </div>
-            <Link className="icon-btn" to={`/admin/collections/${collection.id}`} aria-label={`Edit ${collection.name}`}><Pencil size={16} /></Link>
-            <button className="icon-btn icon-btn-danger" onClick={() => setDeleting(collection)} aria-label={`Delete ${collection.name}`}><Trash2 size={16} /></button>
+            <Link className="icon-btn" to={`/admin/collections/${collection.id}`} aria-label={t.edit(collection.name)}><Pencil size={16} /></Link>
+            <button className="icon-btn icon-btn-danger" onClick={() => setDeleting(collection)} aria-label={t.deleteItem(collection.name)}><Trash2 size={16} /></button>
           </li>
         ))}
       </ul>
       {deleting && (
         <ConfirmDialog
-          title={`Delete "${deleting.name}"?`}
-          body={deleting.product_count > 0
-            ? `This also permanently deletes its ${deleting.product_count} ${deleting.product_count === 1 ? 'product' : 'products'} and their images. This can't be undone.`
-            : "This can't be undone."}
-          confirmLabel="Delete"
+          title={t.deleteTitle(deleting.name)}
+          body={deleting.product_count > 0 ? t.deleteCollectionBody(deleting.product_count) : t.cantUndo}
+          confirmLabel={t.delete}
           onConfirm={confirmDelete}
           onCancel={() => setDeleting(null)}
         />

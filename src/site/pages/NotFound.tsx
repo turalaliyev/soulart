@@ -1,14 +1,15 @@
-import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { Link, useStrings } from '../i18n';
 import { useTitle } from '../motion';
 
 export default function NotFound() {
-  useTitle('Page not found');
+  const t = useStrings();
+  useTitle(t.notFound);
   return (
     <main className="not-found wrap">
-      <h1>Page not found</h1>
-      <p>The page you were looking for has moved or no longer exists.</p>
-      <Link to="/" className="arrow-link">Back to home <ArrowRight size={20} aria-hidden="true" /></Link>
+      <h1>{t.notFound}</h1>
+      <p>{t.notFoundText}</p>
+      <Link to="/" className="arrow-link">{t.backHome} <ArrowRight size={20} aria-hidden="true" /></Link>
     </main>
   );
 }
