@@ -109,7 +109,8 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
   function addFiles(files: FileList | null) {
     if (!files) return;
     const accepted = Array.from(files).filter((f) => ACCEPT.split(',').includes(f.type));
-    setProblem(accepted.length < files.length ? t.badFiles : '');
+    const overLimit = multiple && items.length + accepted.length > max;
+    setProblem(accepted.length < files.length ? t.badFiles : overLimit ? t.imageLimit(max) : '');
     const added = accepted.map<ImageItem>((file) => ({ key: crypto.randomUUID(), file, url: URL.createObjectURL(file) }));
     onChange(multiple ? [...items, ...added].slice(0, max) : added.slice(0, 1).concat(added.length ? [] : items));
   }
@@ -127,7 +128,7 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
       <div className={multiple ? 'image-grid' : 'image-grid image-grid-single'}>
         {items.map((item, i) => (
           <figure className="image-tile" key={item.key}>
-            <img src={item.url} alt={t.selected(i + 1)} />
+            <img src={item.url} alt={t.selected(i + 1)} loading="lazy" decoding="async" />
             {multiple && i === 0 && <figcaption><Star size={12} aria-hidden="true" /> {t.cover}</figcaption>}
             <div className="image-tile-tools">
               {multiple && <button type="button" className="icon-btn" disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={t.moveEarlier}><ArrowLeft size={15} /></button>}
@@ -157,26 +158,45 @@ export function ImagesField({ items, onChange, max = 30, label, hint, error }: {
   );
 }
 
-/** Compresses and uploads new images, returning all stored paths in display order. Rolls back uploads if any fail. */
-export async function commitImages(items: ImageItem[], folder: 'collections' | 'products' | 'site'): Promise<{ paths: string[]; uploaded: string[] }> {
+const PARALLEL_UPLOADS = 3;
+
+/**
+ * Compresses and uploads new images a few at a time, returning all stored paths in display order.
+ * Rolls back this save's uploads if any of them fail.
+ */
+export async function commitImages(
+  items: ImageItem[],
+  folder: 'categories' | 'collections' | 'site',
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ paths: string[]; uploaded: string[] }> {
   const backend = await getBackend();
+  const paths: (string | undefined)[] = items.map((item) => item.path);
+  const queue = items.flatMap((item, index) => (item.path || !item.file ? [] : [{ file: item.file, index }]));
   const uploaded: string[] = [];
-  const paths: string[] = [];
-  try {
-    for (const item of items) {
-      if (item.path) {
-        paths.push(item.path);
-      } else if (item.file) {
-        const path = await backend.uploadImage(await compressImage(item.file), folder);
-        uploaded.push(path);
-        paths.push(path);
-      }
+  let done = 0;
+  let failed = false;
+  onProgress?.(0, queue.length);
+
+  async function worker() {
+    while (queue.length && !failed) {
+      const { file, index } = queue.shift()!;
+      const path = await backend.uploadImage(await compressImage(file), folder);
+      uploaded.push(path);
+      paths[index] = path;
+      onProgress?.(++done, uploaded.length + queue.length);
     }
-  } catch (e) {
-    await backend.removeImages(uploaded).catch(() => {});
-    throw e;
   }
-  return { paths, uploaded };
+
+  // Wait for every worker, so uploads still in flight when one fails are cleaned up too.
+  const results = await Promise.allSettled(
+    Array.from({ length: PARALLEL_UPLOADS }, () => worker().catch((e) => { failed = true; throw e; })),
+  );
+  const failure = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+  if (failure) {
+    await backend.removeImages(uploaded).catch(() => {});
+    throw failure.reason;
+  }
+  return { paths: paths.filter((p): p is string => Boolean(p)), uploaded };
 }
 
 export const toItems = (paths: (string | null | undefined)[]): ImageItem[] =>

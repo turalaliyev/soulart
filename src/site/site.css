@@ -682,7 +682,7 @@
   gap: clamp(20px, 2vw, 32px);
 }
 
-/* Collection hover list --------------------------------------------------- */
+/* Category hover list --------------------------------------------------- */
 .clist {
   background: var(--black);
   color: var(--white);
@@ -1015,7 +1015,7 @@
 }
 
 .about-story-image img,
-.product-image img {
+.collection-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1029,55 +1029,183 @@
   margin-bottom: 24px;
 }
 
-/* Product page ------------------------------------------------------------ */
-.product {
+/* Collection page ------------------------------------------------------------ */
+.collection {
   padding-top: 96px;
 }
 
-.product-head {
+.collection-head {
   margin-bottom: 32px;
 }
 
-.product-head h1 {
+.collection-head h1 {
   font-size: clamp(44px, 5.6vw, 88px);
   font-weight: 500;
   line-height: 1.05;
   letter-spacing: -0.05em;
 }
 
-.product-head p {
+.collection-head p {
   margin-top: 8px;
   color: var(--muted);
   font-size: 18px;
 }
 
-.product-head a {
+.collection-head a {
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 /* Artwork is shown whole, never cropped, whatever its proportions. */
-.product-image {
+.collection-image {
   background: var(--paper-2);
 }
 
-.product-image img {
+.collection-image img {
   height: auto;
   max-height: 88vh;
   object-fit: contain;
   margin-inline: auto;
 }
 
-.product-text {
+.collection-text {
   padding-block: clamp(48px, 6vw, 96px);
 }
 
-.product-gallery {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.collection-cover {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.dot-sep {
+  color: var(--muted);
+}
+
+/* Pictures keep their own proportions, so columns rather than rows. */
+.gallery {
+  columns: 3 280px;
+  column-gap: clamp(12px, 1.6vw, 20px);
   padding-bottom: clamp(48px, 6vw, 96px);
+}
+
+.gallery-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-bottom: clamp(12px, 1.6vw, 20px);
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: var(--paper-2);
+  cursor: zoom-in;
+  break-inside: avoid;
+}
+
+.gallery-tile img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 1s var(--ease);
+}
+
+.gallery-tile:hover img { transform: scale(1.04); }
+.gallery-tile:hover .corner-tr { transform: translate(6px, -6px); }
+.gallery-tile:hover .corner-bl { transform: translate(-6px, 6px); }
+
+/* Full-screen viewer ----------------------------------------------------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--black);
+  color: var(--white);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  animation: lightbox-in 0.35s var(--ease);
+}
+
+.lightbox::backdrop {
+  background: transparent;
+}
+
+@keyframes lightbox-in {
+  from { opacity: 0; }
+}
+
+.lightbox-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 12px 24px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lightbox-stage {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 64px clamp(16px, 6vw, 96px);
+}
+
+.lightbox-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.lightbox-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.4);
+  color: var(--white);
+  cursor: pointer;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.lightbox-btn:hover {
+  background: var(--white);
+  border-color: var(--white);
+  color: var(--black);
+}
+
+.lightbox-prev,
+.lightbox-next {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.lightbox-prev { left: clamp(8px, 2vw, 24px); }
+.lightbox-next { right: clamp(8px, 2vw, 24px); }
+
+@media (max-width: 560px) {
+  .lightbox-prev,
+  .lightbox-next {
+    top: auto;
+    bottom: 16px;
+    translate: none;
+  }
 }
 
 .related {

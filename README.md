@@ -2,7 +2,8 @@
 
 A website for a collection of art and crafts, with an admin panel. Built with React, Vite and Supabase, and hosted on Vercel.
 
-- Website: `/`, `/about`, `/collections`, `/collections/:slug`, `/products/:slug`, `/contact`
+- Website: `/`, `/about`, `/categories`, `/categories/:slug`, `/collections/:slug`, `/contact`
+- Content: categories hold collections, and each collection holds its pictures.
 - Admin panel: `/admin`
 
 ## Try it locally
@@ -60,9 +61,11 @@ After this, each `git push` to `main` redeploys the site. If you change an envir
 
 ## Fill in the content
 
-1. Under **Site content**, replace the starter text and upload the hero, About, Collections and Contact images. Also set your real contact email: the starter address `hello@soulart.com` is a placeholder.
-2. Under **Collections**, create your collections.
-3. Under **Products**, add products. Each one needs at least one image, and the first image is the cover. Tick **Show on the home page** for the pieces you want under Selected Works. If you tick none, the home page shows the most recent ones.
+1. Under **Site content**, replace the starter text and upload the hero, About, Categories and Contact images. Also set your real contact email: the starter address `hello@soulart.com` is a placeholder.
+2. Under **Categories**, create your categories, such as paintings or ceramics.
+3. Under **Collections**, add a collection to a category and drop in all its pictures at once, up to 200. The first picture is the cover. Tick **Show on the home page** for the collections you want under Selected Works. If you tick none, the home page shows the most recent ones.
+
+On the website, a collection page shows the cover, the description and a grid of every picture. Clicking a picture opens it full screen, where visitors can move through the collection with the arrows or by swiping.
 
 ## Languages
 
@@ -76,14 +79,19 @@ Visitors switch with AZ / RU / EN in the header. A visitor who picks Russian or 
 
 In the admin panel, the switch at the bottom of the sidebar changes the panel's own language. The tabs at the top of each form choose which language you are editing:
 
-- Azerbaijani is the main version, and each collection and product needs a name in it. The page address comes from that first name and stays the same if you rename the item later.
+- Azerbaijani is the main version, and each category and collection needs a name in it. The page address comes from that first name and stays the same if you rename the item later.
 - Russian and English are optional. Where you leave a field blank, the website shows the Azerbaijani text.
 - An orange dot on a tab means that language still needs translating.
 - Images, email, phone and social links are shared across languages.
 
 To change fixed text such as button labels, edit `src/site/strings.ts` (website) or `src/admin/i18n.tsx` (admin panel).
 
-**Upgrading a database made before languages were added:** run all of `supabase/schema.sql` again in the SQL Editor *before* deploying the new code. It adds the translation columns and keeps your content. Text already in your collections and products counts as Azerbaijani.
+## Upgrading an existing database
+
+Run all of `supabase/schema.sql` again in the SQL Editor *before* the new code goes live. It keeps your content:
+
+- **From the collections-and-products version:** your old collections become categories, and your old products become collections inside them, with their pictures, translations and order. Old links keep working: `/products/name` opens the collection, and `/collections/name` for a former collection opens its category.
+- **From the version before languages:** it adds the translation columns. Text already in the database counts as Azerbaijani.
 
 ## Good to know
 

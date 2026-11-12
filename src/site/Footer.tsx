@@ -11,15 +11,15 @@ export default function Footer() {
         <div className="footer-top">
           <div>
             <p className="footer-heading">{settings.footer_heading}</p>
-            <Link to="/collections" className="footer-cta">
-              <span>{t.viewAllCollections}</span>
+            <Link to="/categories" className="footer-cta">
+              <span>{t.viewAllCategories}</span>
               <span className="footer-cta-dot"><ArrowRight size={16} aria-hidden="true" /></span>
             </Link>
           </div>
           <nav className="footer-links" aria-label={t.footerNav}>
             <Link to="/">{t.home}</Link>
             <Link to="/about">{t.about}</Link>
-            <Link to="/collections">{t.collections}</Link>
+            <Link to="/categories">{t.categories}</Link>
             <Link to="/contact">{t.contact}</Link>
           </nav>
         </div>

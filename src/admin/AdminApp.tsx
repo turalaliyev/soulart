@@ -3,12 +3,12 @@ import { Link, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, FolderOpen, Image as ImageIcon, LogOut, Mail, Settings2 } from 'lucide-react';
 import { getBackend, isConfigured } from '../lib/backend';
-import CollectionEditor from './CollectionEditor';
-import CollectionsList from './CollectionsList';
+import CategoryEditor from './CategoryEditor';
+import CategoriesList from './CategoriesList';
 import { AdminLangProvider, AdminLanguageSwitch, useT } from './i18n';
 import Messages from './Messages';
-import ProductEditor from './ProductEditor';
-import ProductsList from './ProductsList';
+import CollectionEditor from './CollectionEditor';
+import CollectionsList from './CollectionsList';
 import SiteEditor from './SiteEditor';
 import { ToastProvider, useToast } from './ui';
 import './admin.css';
@@ -119,8 +119,8 @@ function Shell({ email }: { email: string }) {
       <aside className="sidebar">
         <Link to="/admin" className="admin-logo">SoulArt</Link>
         <nav className="sidebar-nav" aria-label={t.adminNav}>
-          <NavLink to="/admin/collections"><FolderOpen size={18} aria-hidden="true" /> <span>{t.collections}</span></NavLink>
-          <NavLink to="/admin/products"><ImageIcon size={18} aria-hidden="true" /> <span>{t.products}</span></NavLink>
+          <NavLink to="/admin/categories"><FolderOpen size={18} aria-hidden="true" /> <span>{t.categories}</span></NavLink>
+          <NavLink to="/admin/collections"><ImageIcon size={18} aria-hidden="true" /> <span>{t.collections}</span></NavLink>
           <NavLink to="/admin/site"><Settings2 size={18} aria-hidden="true" /> <span>{t.siteContent}</span></NavLink>
           <NavLink to="/admin/messages"><Mail size={18} aria-hidden="true" /> <span>{t.messages}</span> <UnreadBadge /></NavLink>
         </nav>
@@ -169,16 +169,16 @@ export default function AdminApp() {
       <ToastProvider>
         <Routes>
           <Route element={<Gate />}>
-            <Route index element={<Navigate to="collections" replace />} />
+            <Route index element={<Navigate to="categories" replace />} />
+            <Route path="categories" element={<CategoriesList />} />
+            <Route path="categories/new" element={<CategoryEditor />} />
+            <Route path="categories/:id" element={<CategoryEditor />} />
             <Route path="collections" element={<CollectionsList />} />
             <Route path="collections/new" element={<CollectionEditor />} />
             <Route path="collections/:id" element={<CollectionEditor />} />
-            <Route path="products" element={<ProductsList />} />
-            <Route path="products/new" element={<ProductEditor />} />
-            <Route path="products/:id" element={<ProductEditor />} />
             <Route path="site" element={<SiteEditor />} />
             <Route path="messages" element={<Messages />} />
-            <Route path="*" element={<Navigate to="collections" replace />} />
+            <Route path="*" element={<Navigate to="categories" replace />} />
           </Route>
         </Routes>
       </ToastProvider>

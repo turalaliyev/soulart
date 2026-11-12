@@ -24,7 +24,7 @@ export default function About() {
               <Reveal><h2 className="h2">{s.about_body_heading}</h2></Reveal>
               <Reveal delay={0.1}>
                 <p className="prose">{s.about_body}</p>
-                <Link to="/collections" className="arrow-link arrow-link-dark">{t.seeCollections} <ArrowRight size={20} aria-hidden="true" /></Link>
+                <Link to="/categories" className="arrow-link arrow-link-dark">{t.seeCategories} <ArrowRight size={20} aria-hidden="true" /></Link>
               </Reveal>
             </div>
           </div>

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { ArrowDown, ArrowRight } from 'lucide-react';
 import { imageUrl } from '../../lib/backend';
-import type { Collection, Product } from '../../lib/types';
+import type { Category, Collection } from '../../lib/types';
 import ContactSection from '../ContactSection';
-import { Link, useSiteCollections, useSiteProducts, useStrings } from '../i18n';
+import { Link, useSiteCategories, useSiteCollections, useStrings } from '../i18n';
 import { EASE, Eyebrow, FitTitle, Reveal, useParallax, useTitle } from '../motion';
 import { useSettings } from '../SiteApp';
 import WorkCard from '../WorkCard';
@@ -26,7 +26,7 @@ function Hero() {
       <div className="wrap hero-inner">
         <motion.div className="hero-top" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE, delay: 0.5 }}>
           <p>{settings.hero_tagline}</p>
-          <Link to="/collections" className="arrow-link">{t.viewCollections} <ArrowDown size={20} aria-hidden="true" /></Link>
+          <Link to="/categories" className="arrow-link">{t.viewCategories} <ArrowDown size={20} aria-hidden="true" /></Link>
         </motion.div>
         <FitTitle text={settings.hero_title} delay={0.25} maxSize={window.innerHeight * 0.5} className="hero-title" />
       </div>
@@ -74,19 +74,19 @@ function Intro({ images }: { images: string[] }) {
   );
 }
 
-function FloatingCard({ product, index }: { product: Product; index: number }) {
+function FloatingCard({ collection, index }: { collection: Collection; index: number }) {
   const { ref, y } = useParallax(index % 2 === 0 ? 30 : 70);
   return (
     <motion.div ref={ref} className={`works-item works-item-${index % 4}`} style={{ y }}>
       <Reveal y={60}>
-        <WorkCard to={`/products/${product.slug}`} image={product.images[0]} title={product.name} description={product.description.split('\n')[0]} badge={product.collection?.name} aspect={index % 2 === 0 ? '16 / 11' : '12 / 7'} />
+        <WorkCard to={`/collections/${collection.slug}`} image={collection.images[0]} title={collection.name} description={collection.description.split('\n')[0]} badge={collection.category?.name} aspect={index % 2 === 0 ? '16 / 11' : '12 / 7'} />
       </Reveal>
     </motion.div>
   );
 }
 
 /** Cards float past a giant grey heading that slides sideways behind them. */
-function SelectedWorks({ products }: { products: Product[] }) {
+function SelectedWorks({ collections }: { collections: Collection[] }) {
   const settings = useSettings();
   const t = useStrings();
   const section = useRef<HTMLElement>(null);
@@ -99,32 +99,32 @@ function SelectedWorks({ products }: { products: Product[] }) {
         <motion.h2 id="works-heading" style={{ x: reduced ? 0 : x }}>{settings.works_heading}</motion.h2>
       </div>
       <div className="wrap works-list">
-        {products.map((product, i) => <FloatingCard key={product.id} product={product} index={i} />)}
+        {collections.map((collection, i) => <FloatingCard key={collection.id} collection={collection} index={i} />)}
       </div>
       <Reveal className="wrap works-more">
-        <Link to="/collections" className="arrow-link arrow-link-dark">{t.allCollections} <ArrowRight size={20} aria-hidden="true" /></Link>
+        <Link to="/categories" className="arrow-link arrow-link-dark">{t.allCategories} <ArrowRight size={20} aria-hidden="true" /></Link>
       </Reveal>
     </section>
   );
 }
 
 /** Names on the left, picture on the right. Hover or focus a name to bring its picture forward. */
-function CollectionList({ collections }: { collections: Collection[] }) {
+function CategoryList({ categories }: { categories: Category[] }) {
   const [active, setActive] = useState(0);
   const t = useStrings();
-  const current = collections[Math.min(active, collections.length - 1)];
+  const current = categories[Math.min(active, categories.length - 1)];
   return (
-    <section className="clist" aria-label={t.collections}>
+    <section className="clist" aria-label={t.categories}>
       <div className="wrap">
-        <Eyebrow>{t.collections}</Eyebrow>
+        <Eyebrow>{t.categories}</Eyebrow>
         <div className="clist-grid">
           <ul className="clist-names">
-            {collections.map((collection, i) => (
-              <li key={collection.id}>
-                <Link to={`/collections/${collection.slug}`} className={i === active ? 'is-active' : ''} onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)}>
+            {categories.map((category, i) => (
+              <li key={category.id}>
+                <Link to={`/categories/${category.slug}`} className={i === active ? 'is-active' : ''} onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)}>
                   <span className="clist-arrow" aria-hidden="true"><ArrowRight size={18} /></span>
-                  {collection.cover && <img className="clist-thumb" src={imageUrl(collection.cover)} alt="" loading="lazy" />}
-                  <span className="clist-name">{collection.name}</span>
+                  {category.cover && <img className="clist-thumb" src={imageUrl(category.cover)} alt="" loading="lazy" />}
+                  <span className="clist-name">{category.name}</span>
                 </Link>
               </li>
             ))}
@@ -151,9 +151,9 @@ function CollectionList({ collections }: { collections: Collection[] }) {
 
 export default function Home() {
   useTitle('SoulArt');
-  const featured = useSiteProducts({ featured: true, limit: 8 });
-  const latest = useSiteProducts({ limit: 8 }, featured.isSuccess && featured.data?.length === 0);
-  const collections = useSiteCollections();
+  const featured = useSiteCollections({ featured: true, limit: 8 });
+  const latest = useSiteCollections({ limit: 8 }, featured.isSuccess && featured.data?.length === 0);
+  const categories = useSiteCategories();
   const works = featured.data?.length ? featured.data : latest.data ?? [];
 
   return (
@@ -161,8 +161,8 @@ export default function Home() {
       <Hero />
       <Intro images={works.map((p) => p.images[0])} />
       <main className="home-over">
-        {works.length > 0 && <SelectedWorks products={works} />}
-        {!!collections.data?.length && <CollectionList collections={collections.data} />}
+        {works.length > 0 && <SelectedWorks collections={works} />}
+        {!!categories.data?.length && <CategoryList categories={categories.data} />}
         <ContactSection />
       </main>
     </>

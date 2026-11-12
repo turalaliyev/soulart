@@ -9,7 +9,7 @@ import type { ImageItem } from './images';
 import { LangTabs, readTexts, writeTranslations, type Texts } from './translations';
 import { commitImages, ImagesField, PageHeader, toItems, useToast } from './ui';
 
-const IMAGE_KEYS = ['hero_image', 'collections_image', 'about_image', 'about_body_image', 'contact_image'] as const;
+const IMAGE_KEYS = ['hero_image', 'categories_image', 'about_image', 'about_body_image', 'contact_image'] as const;
 type ImageKey = (typeof IMAGE_KEYS)[number];
 type SharedKey = 'contact_email' | 'contact_phone' | 'instagram_url' | 'facebook_url';
 
@@ -25,7 +25,7 @@ const image = (key: ImageKey): Field => ({ kind: 'image', key });
 const SECTIONS: { title: keyof AdminStrings; fields: Field[] }[] = [
   { title: 'sectionHero', fields: [text('hero_title'), text('hero_tagline', true), image('hero_image')] },
   { title: 'sectionHome', fields: [text('intro_heading'), text('intro_text', true), text('works_heading')] },
-  { title: 'sectionCollections', fields: [text('collections_title'), text('collections_tagline', true), image('collections_image')] },
+  { title: 'sectionCategories', fields: [text('categories_title'), text('categories_tagline', true), image('categories_image')] },
   {
     title: 'sectionAbout',
     fields: [

@@ -1,6 +1,8 @@
 -- SoulArt database. Paste this whole file into Supabase > SQL Editor and click Run.
 -- It is safe to run more than once, including on a database created by an earlier version of this file.
 --
+-- Structure: categories hold collections, and each collection holds its pictures.
+--
 -- Languages: Azerbaijani, the default, lives in the normal columns. Russian and English live in each
 -- row's `translations` column, as {"ru": {"name": "..."}, "en": {...}}. A blank translation falls back to Azerbaijani.
 
@@ -26,9 +28,62 @@ revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- Collections: name and description required, image optional.
+-- Upgrade from the earlier layout, where collections held products.
+-- The old collections become categories and the old products become collections,
+-- keeping every row, picture and translation. Does nothing on a new or already upgraded database.
 -- ---------------------------------------------------------------------------
-create table if not exists public.collections (
+do $$
+declare
+  old_name text;
+begin
+  if to_regclass('public.products') is not null and to_regclass('public.categories') is null then
+    -- Old policies move with their tables; new ones with new names are created further down.
+    drop policy if exists "collections are public" on public.collections;
+    drop policy if exists "admins manage collections" on public.collections;
+    drop policy if exists "products are public" on public.products;
+    drop policy if exists "admins manage products" on public.products;
+
+    alter table public.collections rename to categories;
+    alter table public.products rename to collections;
+    alter table public.collections rename column collection_id to category_id;
+    alter index if exists public.products_collection_idx rename to collections_category_idx;
+    alter index if exists public.products_featured_idx rename to collections_featured_idx;
+    -- Constraint names follow the tables. Categories first, so the collections_ names are free.
+    for old_name in select conname from pg_constraint where conrelid = 'public.categories'::regclass and conname like 'collections\_%' loop
+      execute format('alter table public.categories rename constraint %I to %I', old_name, 'categories_' || substr(old_name, 13));
+    end loop;
+    for old_name in select conname from pg_constraint where conrelid = 'public.collections'::regclass and conname like 'products\_%' loop
+      execute format('alter table public.collections rename constraint %I to %I', old_name,
+        replace('collections_' || substr(old_name, 10), 'collection_id', 'category_id'));
+    end loop;
+  end if;
+
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'site_settings' and column_name = 'collections_title') then
+    alter table public.site_settings rename column collections_title to categories_title;
+    alter table public.site_settings rename column collections_tagline to categories_tagline;
+    alter table public.site_settings rename column collections_image to categories_image;
+  end if;
+
+  -- The Russian and English text for those fields is keyed by column name inside `translations`.
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'site_settings' and column_name = 'translations') then
+    update public.site_settings set translations = coalesce((
+      select jsonb_object_agg(lang, case when jsonb_typeof(value) = 'object' then
+        (value - 'collections_title' - 'collections_tagline') || jsonb_strip_nulls(jsonb_build_object(
+          'categories_title', value -> 'collections_title',
+          'categories_tagline', value -> 'collections_tagline'))
+        else value end)
+      from jsonb_each(translations) as entry (lang, value)
+    ), '{}'::jsonb)
+    where translations::text like '%collections_t%';
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Categories: name and description required, image optional.
+-- ---------------------------------------------------------------------------
+create table if not exists public.categories (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(trim(name)) > 0),
   slug        text not null unique,
@@ -39,12 +94,12 @@ create table if not exists public.collections (
 );
 
 -- ---------------------------------------------------------------------------
--- Products: each belongs to one collection and must have at least one image.
+-- Collections: each belongs to one category and holds its pictures, at least one.
 -- images holds storage paths in display order; the first one is the cover.
 -- ---------------------------------------------------------------------------
-create table if not exists public.products (
+create table if not exists public.collections (
   id            uuid primary key default gen_random_uuid(),
-  collection_id uuid not null references public.collections (id) on delete cascade,
+  category_id   uuid not null references public.categories (id) on delete cascade,
   name          text not null check (char_length(trim(name)) > 0),
   slug          text not null unique,
   description   text not null default '',
@@ -53,8 +108,8 @@ create table if not exists public.products (
   sort_order    integer not null default 0,
   created_at    timestamptz not null default now()
 );
-create index if not exists products_collection_idx on public.products (collection_id, sort_order);
-create index if not exists products_featured_idx on public.products (sort_order) where is_featured;
+create index if not exists collections_category_idx on public.collections (category_id, sort_order);
+create index if not exists collections_featured_idx on public.collections (sort_order) where is_featured;
 
 -- ---------------------------------------------------------------------------
 -- Site settings: the editable text and images on Home, About and Contact.
@@ -68,9 +123,9 @@ create table if not exists public.site_settings (
   intro_heading       text not null default 'Tələsmədən, əllə yaradılır.',
   intro_text          text not null default 'Hər əsər bir ideya və bir cüt əllə başlayır. Nələr yaratdığımızı görmək üçün kolleksiyalara baxın.',
   works_heading       text not null default 'Seçilmiş işlər',
-  collections_title   text not null default 'Kolleksiyalar',
-  collections_tagline text not null default 'Hər kolleksiya eyni materialı, texnikanı və ya hekayəni bölüşən əsərlərdən ibarətdir.',
-  collections_image   text,
+  categories_title    text not null default 'Kateqoriyalar',
+  categories_tagline  text not null default 'Hər kateqoriya eyni materialı, texnikanı və ya hekayəni bölüşən kolleksiyaları bir araya gətirir.',
+  categories_image    text,
   about_title         text not null default 'SoulArt haqqında',
   about_tagline       text not null default 'Biz qayğı ilə sənət və sənətkarlıq əsərləri yaradan ustaların təşkilatıyıq.',
   about_image         text,
@@ -92,9 +147,9 @@ create table if not exists public.site_settings (
 -- ---------------------------------------------------------------------------
 -- Translations. Added with ALTER so existing databases pick them up too.
 -- ---------------------------------------------------------------------------
-alter table public.collections add column if not exists translations jsonb not null default '{}'
+alter table public.categories add column if not exists translations jsonb not null default '{}'
   check (jsonb_typeof(translations) = 'object');
-alter table public.products add column if not exists translations jsonb not null default '{}'
+alter table public.collections add column if not exists translations jsonb not null default '{}'
   check (jsonb_typeof(translations) = 'object');
 alter table public.site_settings add column if not exists translations jsonb not null default $json${
   "ru": {
@@ -102,8 +157,8 @@ alter table public.site_settings add column if not exists translations jsonb not
     "intro_heading": "Не спеша, своими руками.",
     "intro_text": "Каждая работа начинается с идеи и пары рук. Загляните в коллекции и посмотрите, что мы создаём.",
     "works_heading": "Избранные работы",
-    "collections_title": "Коллекции",
-    "collections_tagline": "Каждая коллекция объединяет работы общим материалом, техникой или историей.",
+    "categories_title": "Категории",
+    "categories_tagline": "Каждая категория объединяет коллекции общим материалом, техникой или историей.",
     "about_title": "О SoulArt",
     "about_tagline": "Мы объединение мастеров, которые с заботой создают произведения искусства и ремёсел.",
     "mission_lead": "SoulArt объединяет искусство и ремесло,",
@@ -118,8 +173,8 @@ alter table public.site_settings add column if not exists translations jsonb not
     "intro_heading": "Made slowly, by hand.",
     "intro_text": "Each piece starts as an idea and a pair of hands. Browse the collections to see what we have been making.",
     "works_heading": "Selected Works",
-    "collections_title": "Collections",
-    "collections_tagline": "Every collection is a family of pieces that share a material, a technique or a story.",
+    "categories_title": "Categories",
+    "categories_tagline": "Each category brings together collections that share a material, a technique or a story.",
     "about_title": "About SoulArt",
     "about_tagline": "We are an organization of makers creating art and crafts with care.",
     "mission_lead": "SoulArt brings together art and craft",
@@ -140,8 +195,8 @@ update public.site_settings set
   intro_heading = case intro_heading when 'Made slowly, by hand.' then 'Tələsmədən, əllə yaradılır.' else intro_heading end,
   intro_text = case intro_text when 'Each piece starts as an idea and a pair of hands. Browse the collections to see what we have been making.' then 'Hər əsər bir ideya və bir cüt əllə başlayır. Nələr yaratdığımızı görmək üçün kolleksiyalara baxın.' else intro_text end,
   works_heading = case works_heading when 'Selected Works' then 'Seçilmiş işlər' else works_heading end,
-  collections_title = case collections_title when 'Collections' then 'Kolleksiyalar' else collections_title end,
-  collections_tagline = case collections_tagline when 'Every collection is a family of pieces that share a material, a technique or a story.' then 'Hər kolleksiya eyni materialı, texnikanı və ya hekayəni bölüşən əsərlərdən ibarətdir.' else collections_tagline end,
+  categories_title = case categories_title when 'Collections' then 'Kolleksiyalar' else categories_title end,
+  categories_tagline = case categories_tagline when 'Every collection is a family of pieces that share a material, a technique or a story.' then 'Hər kolleksiya eyni materialı, texnikanı və ya hekayəni bölüşən əsərlərdən ibarətdir.' else categories_tagline end,
   about_title = case about_title when 'About SoulArt' then 'SoulArt haqqında' else about_title end,
   about_tagline = case about_tagline when 'We are an organization of makers creating art and crafts with care.' then 'Biz qayğı ilə sənət və sənətkarlıq əsərləri yaradan ustaların təşkilatıyıq.' else about_tagline end,
   mission_lead = case mission_lead when 'SoulArt brings together art and craft' then 'SoulArt sənəti və sənətkarlığı birləşdirir ki,' else mission_lead end,
@@ -151,6 +206,21 @@ update public.site_settings set
   contact_heading = case contact_heading when 'Let''s Chat' then 'Gəlin danışaq' else contact_heading end,
   footer_heading = case footer_heading when 'Explore the collections' then 'Kolleksiyaları kəşf edin' else footer_heading end
 where id = 1;
+
+-- The Categories page used to be the Collections page. Retitle it where the starter text is unchanged.
+update public.site_settings set
+  categories_title = case categories_title when 'Kolleksiyalar' then 'Kateqoriyalar' else categories_title end,
+  categories_tagline = case categories_tagline when 'Hər kolleksiya eyni materialı, texnikanı və ya hekayəni bölüşən əsərlərdən ibarətdir.'
+    then 'Hər kateqoriya eyni materialı, texnikanı və ya hekayəni bölüşən kolleksiyaları bir araya gətirir.' else categories_tagline end
+where id = 1;
+update public.site_settings set translations = jsonb_set(translations, '{ru,categories_title}', '"Категории"')
+  where id = 1 and translations #>> '{ru,categories_title}' = 'Коллекции';
+update public.site_settings set translations = jsonb_set(translations, '{ru,categories_tagline}', '"Каждая категория объединяет коллекции общим материалом, техникой или историей."')
+  where id = 1 and translations #>> '{ru,categories_tagline}' = 'Каждая коллекция объединяет работы общим материалом, техникой или историей.';
+update public.site_settings set translations = jsonb_set(translations, '{en,categories_title}', '"Categories"')
+  where id = 1 and translations #>> '{en,categories_title}' = 'Collections';
+update public.site_settings set translations = jsonb_set(translations, '{en,categories_tagline}', '"Each category brings together collections that share a material, a technique or a story."')
+  where id = 1 and translations #>> '{en,categories_tagline}' = 'Every collection is a family of pieces that share a material, a technique or a story.';
 
 -- ---------------------------------------------------------------------------
 -- Messages sent through the contact form.
@@ -167,29 +237,29 @@ create table if not exists public.contact_messages (
 -- ---------------------------------------------------------------------------
 -- Row level security: visitors read, admins write.
 -- ---------------------------------------------------------------------------
+alter table public.categories       enable row level security;
 alter table public.collections      enable row level security;
-alter table public.products         enable row level security;
 alter table public.site_settings    enable row level security;
 alter table public.contact_messages enable row level security;
 
 grant usage on schema public to anon, authenticated;
-grant select on public.collections, public.products, public.site_settings to anon, authenticated;
-grant insert, update, delete on public.collections, public.products to authenticated;
+grant select on public.categories, public.collections, public.site_settings to anon, authenticated;
+grant insert, update, delete on public.categories, public.collections to authenticated;
 grant update on public.site_settings to authenticated;
 grant select, update, delete on public.contact_messages to authenticated;
 -- Visitors may only supply these three columns when sending a message.
 grant insert (name, email, message) on public.contact_messages to anon, authenticated;
 
+drop policy if exists "categories are public" on public.categories;
+create policy "categories are public" on public.categories for select using (true);
+drop policy if exists "admins manage categories" on public.categories;
+create policy "admins manage categories" on public.categories for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
 drop policy if exists "collections are public" on public.collections;
 create policy "collections are public" on public.collections for select using (true);
 drop policy if exists "admins manage collections" on public.collections;
 create policy "admins manage collections" on public.collections for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-
-drop policy if exists "products are public" on public.products;
-create policy "products are public" on public.products for select using (true);
-drop policy if exists "admins manage products" on public.products;
-create policy "admins manage products" on public.products for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "settings are public" on public.site_settings;

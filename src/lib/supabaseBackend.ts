@@ -1,14 +1,14 @@
 import { createClient, type PostgrestError } from '@supabase/supabase-js';
 import { randomSuffix, slugify } from './slug';
-import { DEFAULT_SETTINGS, type Backend, type Collection, type ContactMessage, type Product, type SiteSettings } from './types';
+import { DEFAULT_SETTINGS, type Backend, type Category, type ContactMessage, type Collection, type SiteSettings } from './types';
 
 const BUCKET = 'media';
 const UNIQUE_VIOLATION = '23505';
-const COLLECTION_SELECT = '*, products(images, sort_order)';
-const PRODUCT_SELECT = '*, collection:collections(name, slug, translations)';
+const CATEGORY_SELECT = '*, collections(images, sort_order)';
+const COLLECTION_SELECT = '*, category:categories(name, slug, translations)';
 
-type CollectionRow = Omit<Collection, 'product_count' | 'cover'> & {
-  products: { images: string[]; sort_order: number }[];
+type CategoryRow = Omit<Category, 'collection_count' | 'cover'> & {
+  collections: { images: string[]; sort_order: number }[];
 };
 
 function check<T>(result: { data: T; error: PostgrestError | null }): T {
@@ -16,10 +16,10 @@ function check<T>(result: { data: T; error: PostgrestError | null }): T {
   return result.data;
 }
 
-function toCollection(row: CollectionRow): Collection {
-  const { products, ...rest } = row;
-  const first = [...products].sort((a, b) => a.sort_order - b.sort_order)[0];
-  return { ...rest, product_count: products.length, cover: row.image ?? first?.images[0] ?? null };
+function toCategory(row: CategoryRow): Category {
+  const { collections, ...rest } = row;
+  const first = [...collections].sort((a, b) => a.sort_order - b.sort_order)[0];
+  return { ...rest, collection_count: collections.length, cover: row.image ?? first?.images[0] ?? null };
 }
 
 export function createSupabaseBackend(url: string, key: string): Backend {
@@ -63,62 +63,62 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       check(await db.from('site_settings').update(patch).eq('id', 1));
     },
 
-    async listCollections() {
-      const rows = check(await db.from('collections').select(COLLECTION_SELECT).order('sort_order').order('created_at'));
-      return (rows as CollectionRow[]).map(toCollection);
+    async listCategories() {
+      const rows = check(await db.from('categories').select(CATEGORY_SELECT).order('sort_order').order('created_at'));
+      return (rows as CategoryRow[]).map(toCategory);
+    },
+    async getCategory(slug) {
+      const row = check(await db.from('categories').select(CATEGORY_SELECT).eq('slug', slug).maybeSingle());
+      return row ? toCategory(row as CategoryRow) : null;
+    },
+    async getCategoryById(id) {
+      const row = check(await db.from('categories').select(CATEGORY_SELECT).eq('id', id).maybeSingle());
+      return row ? toCategory(row as CategoryRow) : null;
+    },
+    async createCategory(input) {
+      const sort_order = await nextSortOrder('categories');
+      const row = await insertWithSlug<CategoryRow>('categories', input.name, { ...input, sort_order }, CATEGORY_SELECT);
+      return toCategory(row);
+    },
+    async updateCategory(id, input) {
+      check(await db.from('categories').update(input).eq('id', id));
+    },
+    async deleteCategory(id) {
+      const category = check(await db.from('categories').select('image').eq('id', id).single()) as { image: string | null };
+      const collections = check(await db.from('collections').select('images').eq('category_id', id)) as { images: string[] }[];
+      check(await db.from('categories').delete().eq('id', id));
+      const files = collections.flatMap((p) => p.images);
+      if (category.image) files.push(category.image);
+      await removeImages(files);
+    },
+    reorderCategories: (ids) => reorder('categories', ids),
+
+    async listCollections(filter = {}) {
+      let query = db.from('collections').select(COLLECTION_SELECT).order('sort_order').order('created_at', { ascending: false });
+      if (filter.categoryId) query = query.eq('category_id', filter.categoryId);
+      if (filter.featured) query = query.eq('is_featured', true);
+      if (filter.limit) query = query.limit(filter.limit);
+      return check(await query) as unknown as Collection[];
     },
     async getCollection(slug) {
-      const row = check(await db.from('collections').select(COLLECTION_SELECT).eq('slug', slug).maybeSingle());
-      return row ? toCollection(row as CollectionRow) : null;
+      return check(await db.from('collections').select(COLLECTION_SELECT).eq('slug', slug).maybeSingle()) as unknown as Collection | null;
     },
     async getCollectionById(id) {
-      const row = check(await db.from('collections').select(COLLECTION_SELECT).eq('id', id).maybeSingle());
-      return row ? toCollection(row as CollectionRow) : null;
+      return check(await db.from('collections').select(COLLECTION_SELECT).eq('id', id).maybeSingle()) as unknown as Collection | null;
     },
     async createCollection(input) {
       const sort_order = await nextSortOrder('collections');
-      const row = await insertWithSlug<CollectionRow>('collections', input.name, { ...input, sort_order }, COLLECTION_SELECT);
-      return toCollection(row);
+      return insertWithSlug<Collection>('collections', input.name, { ...input, sort_order }, COLLECTION_SELECT);
     },
     async updateCollection(id, input) {
       check(await db.from('collections').update(input).eq('id', id));
     },
     async deleteCollection(id) {
-      const collection = check(await db.from('collections').select('image').eq('id', id).single()) as { image: string | null };
-      const products = check(await db.from('products').select('images').eq('collection_id', id)) as { images: string[] }[];
+      const collection = check(await db.from('collections').select('images').eq('id', id).single()) as { images: string[] };
       check(await db.from('collections').delete().eq('id', id));
-      const files = products.flatMap((p) => p.images);
-      if (collection.image) files.push(collection.image);
-      await removeImages(files);
+      await removeImages(collection.images);
     },
     reorderCollections: (ids) => reorder('collections', ids),
-
-    async listProducts(filter = {}) {
-      let query = db.from('products').select(PRODUCT_SELECT).order('sort_order').order('created_at', { ascending: false });
-      if (filter.collectionId) query = query.eq('collection_id', filter.collectionId);
-      if (filter.featured) query = query.eq('is_featured', true);
-      if (filter.limit) query = query.limit(filter.limit);
-      return check(await query) as unknown as Product[];
-    },
-    async getProduct(slug) {
-      return check(await db.from('products').select(PRODUCT_SELECT).eq('slug', slug).maybeSingle()) as unknown as Product | null;
-    },
-    async getProductById(id) {
-      return check(await db.from('products').select(PRODUCT_SELECT).eq('id', id).maybeSingle()) as unknown as Product | null;
-    },
-    async createProduct(input) {
-      const sort_order = await nextSortOrder('products');
-      return insertWithSlug<Product>('products', input.name, { ...input, sort_order }, PRODUCT_SELECT);
-    },
-    async updateProduct(id, input) {
-      check(await db.from('products').update(input).eq('id', id));
-    },
-    async deleteProduct(id) {
-      const product = check(await db.from('products').select('images').eq('id', id).single()) as { images: string[] };
-      check(await db.from('products').delete().eq('id', id));
-      await removeImages(product.images);
-    },
-    reorderProducts: (ids) => reorder('products', ids),
 
     async uploadImage(file, folder) {
       const ext = file.type.split('/')[1] ?? 'webp';

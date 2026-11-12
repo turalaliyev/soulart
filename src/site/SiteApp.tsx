@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Route, Routes, useLocation, useNavigate, type Location } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate, useParams, type Location } from 'react-router-dom';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import Lenis from 'lenis';
 import { imageUrl } from '../lib/backend';
 import { useSettingsQuery } from '../lib/queries';
 import { readStoredLang } from '../lib/i18n';
 import { DEFAULT_SETTINGS, localizeSettings, type SiteSettings } from '../lib/types';
-import { LANG_STORAGE_KEY, LangProvider, localizePath, parsePath } from './i18n';
+import { LANG_STORAGE_KEY, LangProvider, localizePath, parsePath, Redirect } from './i18n';
 import { SITE_STRINGS } from './strings';
 import { EASE } from './motion';
 import Nav from './Nav';
@@ -14,9 +14,9 @@ import Footer from './Footer';
 import Preloader from './Preloader';
 import Home from './pages/Home';
 import About from './pages/About';
-import Collections from './pages/Collections';
+import Categories from './pages/Categories';
+import CategoryDetail from './pages/CategoryDetail';
 import CollectionDetail from './pages/CollectionDetail';
-import ProductDetail from './pages/ProductDetail';
 import Contact from './pages/Contact';
 import NotFound from './pages/NotFound';
 import './site.css';
@@ -67,15 +67,22 @@ function Page({ location }: { location: Location }) {
       <Routes location={location}>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
-        <Route path="/collections" element={<Collections />} />
+        <Route path="/categories" element={<Categories />} />
+        <Route path="/categories/:slug" element={<CategoryDetail />} />
         <Route path="/collections/:slug" element={<CollectionDetail />} />
-        <Route path="/products/:slug" element={<ProductDetail />} />
         <Route path="/contact" element={<Contact />} />
+        {/* Product pages became collection pages; links shared before the change still work. */}
+        <Route path="/products/:slug" element={<OldProductLink />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
     </div>
   );
+}
+
+function OldProductLink() {
+  const { slug = '' } = useParams();
+  return <Redirect to={`/collections/${slug}`} />;
 }
 
 /** Waits for the first page's hero image so the preloader lifts onto a finished picture, but never for long. */

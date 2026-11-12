@@ -7,7 +7,7 @@ export const isConfigured = Boolean(url && key);
 
 let pending: Promise<Backend> | null = null;
 
-/** Supabase when configured. The demo data only exists in `npm run dev`; it is stripped from production builds. */
+/** Supabase when configured. The demo data only exists in `npm run dev`; it is stripped from collectionion builds. */
 export function getBackend(): Promise<Backend> {
   if (!pending) {
     if (isConfigured) {

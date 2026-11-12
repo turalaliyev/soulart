@@ -12,7 +12,7 @@ export default function Nav() {
   const links = [
     { to: '/', label: t.home },
     { to: '/about', label: t.about },
-    { to: '/collections', label: t.collections },
+    { to: '/categories', label: t.categories },
     { to: '/contact', label: t.contact },
   ];
   const [open, setOpen] = useState(false);
