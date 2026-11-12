@@ -1073,6 +1073,11 @@
   padding-block: clamp(48px, 6vw, 96px);
 }
 
+/* Without a description the grid follows the cover directly: keep the same gap as between grid pictures. */
+.collection > .wrap:has(+ .gallery) {
+  margin-bottom: clamp(12px, 1.6vw, 20px);
+}
+
 .collection-cover {
   display: block;
   width: 100%;
